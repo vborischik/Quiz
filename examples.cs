@@ -278,3 +278,157 @@ public class UserController : Controller
 // If no user is found, we handle the scenario by redirecting to a "UserNotFound" view or taking any other appropriate action.
 // By checking for null before accessing properties, we prevent potential runtime exceptions and handle the case when no user is found. This ensures the application behaves as expected and provides a better user experience.
 
+///Example N6
+
+
+//noncompliant
+Controller: HomeController.cs
+using Microsoft.AspNetCore.Mvc;
+
+public class HomeController : Controller
+{
+    public IActionResult Index()
+    {
+        return View();
+    }
+    
+    [HttpPost]
+    public IActionResult SubmitForm(string data)
+    {
+        // Process form submission without validating AntiForgeryToken
+        // ...
+        
+        return RedirectToAction("Success");
+    }
+    
+    public IActionResult Success()
+    {
+        return View();
+    }
+}
+
+Model: MyModel.cs
+public class MyModel
+{
+    public string Data { get; set; }
+}
+
+View: Index.cshtml
+@model MyModel
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<h2>Welcome to the Home Page!</h2>
+
+<form method="post" action="/Home/SubmitForm">
+    <div class="form-group">
+        <label for="data">Data:</label>
+        <input type="text" name="data" id="data" class="form-control" required />
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+
+View: Success.cshtml
+@{
+    ViewData["Title"] = "Success";
+}
+
+<h2>Form submitted successfully!</h2>
+
+<p>Thank you for submitting the form.</p>
+
+//compliant
+
+Controller: HomeController.cs
+using Microsoft.AspNetCore.Mvc;
+
+public class HomeController : Controller
+{
+    public IActionResult Index()
+    {
+        var model = new MyModel();
+        return View(model);
+    }
+    
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult SubmitForm(MyModel model)
+    {
+        // Validate AntiForgeryToken
+        if (!ValidateAntiForgeryToken())
+        {
+            return BadRequest("Invalid AntiForgeryToken");
+        }
+        
+        // Process form submission
+        // ...
+        
+        return RedirectToAction("Success");
+    }
+    
+    public IActionResult Success()
+    {
+        return View();
+    }
+    
+    private bool ValidateAntiForgeryToken()
+    {
+        try
+        {
+            HttpContext.RequestServices.GetService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>()
+                .ValidateRequestAsync(HttpContext).GetAwaiter().GetResult();
+            
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
+
+Model: MyModel.cs
+
+public class MyModel
+{
+    public string Data { get; set; }
+}
+
+View: Index.cshtml
+@model MyModel
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<h2>Welcome to the Home Page!</h2>
+
+<form method="post" action="/Home/SubmitForm">
+    @Html.AntiForgeryToken()
+    
+    <div class="form-group">
+        <label for="data">Data:</label>
+        <input type="text" name="Data" id="data" class="form-control" required />
+    </div>
+    
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+View: Success.cshtml
+
+@{
+    ViewData["Title"] = "Success";
+}
+
+<h2>Form submitted successfully!</h2>
+
+<p>Thank you for submitting the form.</p>
+
+// In the noncompliant version, the SubmitForm action skips the AntiForgeryToken validation. This poses a security risk as it allows potential CSRF (Cross-Site Request Forgery) attacks. In the noncompliant version, the SubmitForm action doesn't include a model parameter, and the form data is retrieved directly from the request parameters. The compliant version includes a model parameter MyModel model in the SubmitForm action, allowing the form data to be bound to the model automatically.
+// In the compliant version, the SubmitForm action includes the [ValidateAntiForgeryToken] attribute, and it validates the AntiForgeryToken using the ValidateAntiForgeryToken method before processing the form submission. This ensures that the form submission is protected against CSRF attacks by validating the AntiForgeryToken.
+
+// It's important to include AntiForgeryToken validation to prevent unauthorized form submissions and ensure the security of your application.
