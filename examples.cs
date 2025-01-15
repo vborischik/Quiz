@@ -7,9 +7,9 @@ public class UserController : Controller
     public ActionResult UserDetails(int id)
     {
         
-        User user = GetUserById(id);
+        User newUser = GetUserById(id);
 
-        return View(user);
+        return View(newUser);
     }
 }
 
